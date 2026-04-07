@@ -1,0 +1,86 @@
+import {
+  applyAutoLayout,
+  deserializeSchemaSnapshot,
+  NodeSqlParserAdapter,
+  schemaToGraph,
+  type ErdGraph,
+  type ParseError,
+  type SchemaModel,
+  type SqlDialect
+} from "@schemapaste/core";
+import { create } from "zustand";
+import { SAMPLE_SQL } from "../utils/sampleSql";
+
+interface SchemaState {
+  sql: string;
+  dialect: SqlDialect;
+  schema: SchemaModel;
+  graph: ErdGraph;
+  errors: ParseError[];
+  isParsing: boolean;
+  toast: string | null;
+  setSql: (sql: string) => void;
+  setDialect: (dialect: SqlDialect) => void;
+  parseSql: (sql: string, dialect?: SqlDialect) => void;
+  setFromSnapshot: (raw: string) => void;
+  setToast: (value: string | null) => void;
+}
+
+const adapter = new NodeSqlParserAdapter();
+const initialResult = adapter.parse(SAMPLE_SQL, "mysql");
+const initialSchema =
+  initialResult.schema ??
+  ({
+    dialect: "mysql",
+    tables: []
+  } satisfies SchemaModel);
+
+const initialGraph = applyAutoLayout(schemaToGraph(initialSchema));
+
+export const useSchemaStore = create<SchemaState>((set, get) => ({
+  sql: SAMPLE_SQL,
+  dialect: "mysql",
+  schema: initialSchema,
+  graph: initialGraph,
+  errors: initialResult.errors,
+  isParsing: false,
+  toast: null,
+  setSql: (sql) => {
+    set({ sql });
+  },
+  setDialect: (dialect) => {
+    set({ dialect });
+    get().parseSql(get().sql, dialect);
+  },
+  parseSql: (sql, dialectOverride) => {
+    const dialect = dialectOverride ?? get().dialect;
+    set({ isParsing: true });
+    const result = adapter.parse(sql, dialect);
+    if (result.schema) {
+      const graph = applyAutoLayout(schemaToGraph(result.schema));
+      set({
+        schema: result.schema,
+        graph,
+        errors: result.errors,
+        isParsing: false
+      });
+      return;
+    }
+    set({
+      errors: result.errors,
+      isParsing: false
+    });
+  },
+  setFromSnapshot: (raw) => {
+    const snapshot = deserializeSchemaSnapshot(raw);
+    const graph = applyAutoLayout(schemaToGraph(snapshot.schema));
+    set({
+      sql: snapshot.sql,
+      schema: snapshot.schema,
+      dialect: snapshot.schema.dialect,
+      graph,
+      errors: []
+    });
+  },
+  setToast: (value) => set({ toast: value })
+}));

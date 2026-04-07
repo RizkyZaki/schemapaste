@@ -1,0 +1,27 @@
+{
+  "name": "@schemapaste/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "dagre": "^0.8.5",
+    "node-sql-parser": "^5.3.10"
+  },
+  "devDependencies": {
+    "@types/dagre": "^0.7.52",
+    "vitest": "^3.1.2"
+  }
+}

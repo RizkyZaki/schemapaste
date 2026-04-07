@@ -1,0 +1,72 @@
+{
+  "name": "schemapaste",
+  "displayName": "SchemaPaste",
+  "description": "Paste SQL DDL and visualize an interactive ERD inside VS Code.",
+  "version": "0.1.0",
+  "publisher": "schemapaste",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/schemapaste"
+  },
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onCommand:schemapaste.openErd",
+    "onView:schemapaste.sidebarView"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "schemapaste",
+          "title": "SchemaPaste",
+          "icon": "media/schemapaste-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "schemapaste": [
+        {
+          "id": "schemapaste.sidebarView",
+          "name": "SchemaPaste"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "schemapaste.openErd",
+        "title": "SchemaPaste: Open ERD",
+        "category": "SchemaPaste"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "schemapaste.openErd",
+        "key": "ctrl+shift+v",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "package": "pnpm -C .. build && @vscode/vsce package --no-dependencies --out ../schemapaste.vsix",
+    "publish": "pnpm -C .. build && @vscode/vsce publish"
+  },
+  "dependencies": {
+    "@schemapaste/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "^3.2.2",
+    "esbuild": "^0.25.5"
+  }
+}
