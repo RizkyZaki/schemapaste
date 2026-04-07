@@ -49,6 +49,7 @@ const initialSchema =
   } satisfies SchemaModel);
 
 const initialGraph = applyAutoLayout(schemaToGraph(initialSchema));
+const emptyGraph: ErdGraph = { nodes: [], edges: [] };
 
 export const useSchemaStore = create<SchemaState>((set, get) => ({
   sql: SAMPLE_SQL,
@@ -75,7 +76,9 @@ export const useSchemaStore = create<SchemaState>((set, get) => ({
       get().parseSql(get().sql, get().dialect);
     } else {
       set({
-        errors: []
+        errors: [],
+        graph: emptyGraph,
+        parserIssues: []
       });
     }
   },

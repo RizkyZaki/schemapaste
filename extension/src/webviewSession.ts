@@ -48,7 +48,12 @@ export class SchemaPasteWebviewSession {
     private readonly hooks?: SchemaPasteWebviewSessionHooks
   ) {
     if (initialState) {
-      this.state = initialState;
+      this.state = {
+        ...this.state,
+        ...initialState,
+        sourceType: initialState.sourceType ?? "sql",
+        parserIssues: initialState.parserIssues ?? []
+      };
     }
   }
 
@@ -141,19 +146,43 @@ export class SchemaPasteWebviewSession {
           return;
         }
 
-        const parsed = await this.hooks.onParseSource(
-          message.payload.source,
-          message.payload.sourceType,
-          message.payload.dialect
-        );
+        try {
+          const parsed = await this.hooks.onParseSource(
+            message.payload.source,
+            message.payload.sourceType,
+            message.payload.dialect
+          );
 
-        this.state.graph = parsed.graph;
-        this.state.parserIssues = parsed.parserIssues;
+          this.state.graph = parsed.graph;
+          this.state.parserIssues = parsed.parserIssues;
 
-        this.postMessage({
-          type: "parsedGraph",
-          payload: parsed
-        });
+          this.postMessage({
+            type: "parsedGraph",
+            payload: parsed
+          });
+        } catch (error) {
+          const text = error instanceof Error ? error.message : "Failed to parse source.";
+          const fallback = {
+            graph: {
+              nodes: [],
+              edges: []
+            },
+            parserIssues: [
+              {
+                level: "error" as const,
+                message: text
+              }
+            ]
+          };
+
+          this.state.graph = fallback.graph;
+          this.state.parserIssues = fallback.parserIssues;
+
+          this.postMessage({
+            type: "parsedGraph",
+            payload: fallback
+          });
+        }
         return;
       }
       case "exportMigration": {

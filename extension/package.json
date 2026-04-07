@@ -2,7 +2,7 @@
   "name": "schemapaste",
   "displayName": "SchemaPaste",
   "description": "Paste SQL DDL and visualize an interactive ERD inside VS Code.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "schemapaste",
   "license": "MIT",
   "repository": {
@@ -45,7 +45,7 @@
     "viewsWelcome": [
       {
         "view": "schemapaste.workspaceHistory",
-        "contents": "Create your first ERD workspace.\n[New ERD Workspace](command:schemapaste.newWorkspace)",
+        "contents": "SchemaPaste Workspace Hub\n\nBuild ERD from SQL, Laravel, Prisma, Drizzle, TypeORM, Sequelize, or Django sources.\n\n[New ERD Workspace](command:schemapaste.newWorkspace) • [Open Workspace](command:schemapaste.openWorkspace)\n\n[Search History](command:schemapaste.searchWorkspace) • [Toggle Sort](command:schemapaste.sortWorkspace)",
         "when": "view == schemapaste.workspaceHistory"
       }
     ],
@@ -137,32 +137,32 @@
       "view/item/context": [
         {
           "command": "schemapaste.openWorkspace",
-          "when": "view == schemapaste.workspaceHistory && viewItem == workspaceItem || viewItem == workspaceItemPinned",
+          "when": "view == schemapaste.workspaceHistory && (viewItem == workspaceItem || viewItem == workspaceItemPinned)",
           "group": "inline@1"
         },
         {
           "command": "schemapaste.renameWorkspace",
-          "when": "view == schemapaste.workspaceHistory && viewItem == workspaceItem || viewItem == workspaceItemPinned",
+          "when": "view == schemapaste.workspaceHistory && (viewItem == workspaceItem || viewItem == workspaceItemPinned)",
           "group": "inline@2"
         },
         {
           "command": "schemapaste.duplicateWorkspace",
-          "when": "view == schemapaste.workspaceHistory && viewItem == workspaceItem || viewItem == workspaceItemPinned",
+          "when": "view == schemapaste.workspaceHistory && (viewItem == workspaceItem || viewItem == workspaceItemPinned)",
           "group": "inline@3"
         },
         {
           "command": "schemapaste.togglePinWorkspace",
-          "when": "view == schemapaste.workspaceHistory && viewItem == workspaceItem || viewItem == workspaceItemPinned",
+          "when": "view == schemapaste.workspaceHistory && (viewItem == workspaceItem || viewItem == workspaceItemPinned)",
           "group": "inline@4"
         },
         {
           "command": "schemapaste.exportWorkspace",
-          "when": "view == schemapaste.workspaceHistory && viewItem == workspaceItem || viewItem == workspaceItemPinned",
+          "when": "view == schemapaste.workspaceHistory && (viewItem == workspaceItem || viewItem == workspaceItemPinned)",
           "group": "inline@5"
         },
         {
           "command": "schemapaste.deleteWorkspace",
-          "when": "view == schemapaste.workspaceHistory && viewItem == workspaceItem || viewItem == workspaceItemPinned",
+          "when": "view == schemapaste.workspaceHistory && (viewItem == workspaceItem || viewItem == workspaceItemPinned)",
           "group": "inline@6"
         }
       ]

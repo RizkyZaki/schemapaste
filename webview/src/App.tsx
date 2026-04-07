@@ -92,9 +92,10 @@ export default function App(): JSX.Element {
       }
 
       if (message.type === "restoreState") {
+        const restoredSourceType = message.payload.sourceType ?? "sql";
         setSql(message.payload.sql);
         setDialect(message.payload.dialect);
-        setSourceType(message.payload.sourceType);
+        setSourceType(restoredSourceType);
         if (message.payload.graph) {
           setParsedGraph(message.payload.graph, message.payload.parserIssues ?? []);
         }
@@ -221,6 +222,11 @@ export default function App(): JSX.Element {
     });
   };
 
+  const emptyHint =
+    sourceType === "sql"
+      ? "Paste CREATE TABLE SQL to generate your ERD."
+      : `Paste ${sourceType.toUpperCase()} source code to generate your ERD.`;
+
   return (
     <div className="h-screen w-screen overflow-hidden bg-surface text-text antialiased">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.18),transparent_28%)]" />
@@ -280,12 +286,16 @@ export default function App(): JSX.Element {
                   />
                 ))}
               </div>
-            ) : schema.tables.length === 0 ? (
+            ) : graph.nodes.length === 0 ? (
               <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border/80 bg-panel/40 p-8 text-center">
                 <div>
                   <div className="mb-3 text-4xl">[]</div>
-                  <p className="text-sm font-semibold">Paste CREATE TABLE SQL to generate your ERD.</p>
-                  <p className="text-xs text-muted">Supports MySQL, PostgreSQL, and SQLite.</p>
+                  <p className="text-sm font-semibold">{emptyHint}</p>
+                  <p className="text-xs text-muted">
+                    {sourceType === "sql"
+                      ? "Supports MySQL, PostgreSQL, and SQLite."
+                      : "SchemaPaste will parse and map relationships from your selected framework source."}
+                  </p>
                 </div>
               </div>
             ) : (

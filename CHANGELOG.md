@@ -8,6 +8,12 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 
 ### Added
 
+- Placeholder for upcoming improvements.
+
+## [0.1.1] - 2026-04-07
+
+### Added
+
 - Source-aware webview bridge with parser diagnostics and normalized-schema graph sync.
 - Workspace editor parsing pipeline for SQL, Laravel, Prisma, Drizzle, TypeORM, Sequelize, and Django source types.
 - New export strategy set: SVG diagram, PNG diagram, PDF summary, and source conversion exporters (SQL, Laravel, Prisma, Drizzle, TypeORM, Sequelize, Django).

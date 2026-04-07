@@ -7,6 +7,13 @@ import { SCHEMAPASTE_CUSTOM_EDITOR_VIEW_TYPE } from "../custom-editor/workspaceE
 import { WorkspaceHistoryTreeProvider } from "../sidebar/workspaceTreeProvider";
 import { createDefaultParserRegistry } from "../parsers/registry/createDefaultParserRegistry";
 
+interface WorkspaceCommandArg {
+  id?: string;
+  workspace?: {
+    id?: string;
+  };
+}
+
 const SUPPORTED_SOURCES: SchemaSourceType[] = [
   "sql",
   "laravel",
@@ -16,6 +23,104 @@ const SUPPORTED_SOURCES: SchemaSourceType[] = [
   "sequelize",
   "django"
 ];
+
+function starterSource(sourceType: SchemaSourceType): string {
+  switch (sourceType) {
+    case "sql":
+      return `CREATE TABLE users (
+  id INT PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  created_at DATETIME
+);
+
+CREATE TABLE posts (
+  id INT PRIMARY KEY,
+  user_id INT NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  body TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);`;
+    case "laravel":
+      return `Schema::create('users', function (Blueprint $table) {
+    $table->id();
+    $table->string('email')->unique();
+    $table->timestamps();
+});
+
+Schema::create('posts', function (Blueprint $table) {
+    $table->id();
+    $table->unsignedBigInteger('user_id');
+    $table->string('title');
+    $table->text('body')->nullable();
+    $table->foreign('user_id')->references('id')->on('users');
+});`;
+    case "prisma":
+      return `model User {
+  id    Int    @id
+  email String @unique
+  posts Post[]
+}
+
+model Post {
+  id     Int  @id
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+}`;
+    case "drizzle":
+      return `export const users = pgTable('users', {
+  id: integer('id').primaryKey(),
+  email: varchar('email').notNull().unique()
+});
+
+export const posts = pgTable('posts', {
+  id: integer('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  title: varchar('title').notNull()
+});`;
+    case "typeorm":
+      return `@Entity()
+export class User {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ unique: true })
+  email: string;
+}
+
+@Entity()
+export class Post {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'user_id' })
+  user: User;
+}`;
+    case "sequelize":
+      return `sequelize.define('users', {
+  id: { type: DataTypes.INTEGER, allowNull: false, primaryKey: true },
+  email: { type: DataTypes.STRING, allowNull: false, unique: true }
+});
+
+sequelize.define('posts', {
+  id: { type: DataTypes.INTEGER, allowNull: false, primaryKey: true },
+  user_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: 'users', key: 'id' } },
+  title: { type: DataTypes.STRING, allowNull: false }
+});`;
+    case "django":
+      return `class User(models.Model):
+    id = models.AutoField(primary_key=True)
+    email = models.CharField(max_length=255, unique=True)
+
+
+class Post(models.Model):
+    id = models.AutoField(primary_key=True)
+    user_id = models.ForeignKey(User, on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)`;
+    default:
+      return "";
+  }
+}
 
 export function registerWorkspaceCommands(
   context: vscode.ExtensionContext,
@@ -32,7 +137,7 @@ export function registerWorkspaceCommands(
         return;
       }
 
-      const source = "";
+      const source = starterSource(sourceType);
       const parser = parserRegistry.resolve(sourceType);
       const parsed = parser.parse(source);
 
@@ -55,7 +160,8 @@ export function registerWorkspaceCommands(
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("schemapaste.openWorkspace", async (workspaceId?: string) => {
+    vscode.commands.registerCommand("schemapaste.openWorkspace", async (arg?: string | WorkspaceCommandArg) => {
+      const workspaceId = resolveWorkspaceId(arg);
       if (workspaceId) {
         await openWorkspaceInCustomEditor(workspaceId);
         return;
@@ -65,8 +171,8 @@ export function registerWorkspaceCommands(
       const picked = await vscode.window.showQuickPick(
         workspaces.map((workspace) => ({
           label: workspace.name,
-          description: workspace.sourceType,
-          detail: workspace.updatedAt,
+          description: `${workspace.sourceType.toUpperCase()} • ${workspace.pinned ? "Pinned" : "History"}`,
+          detail: `Updated ${new Date(workspace.updatedAt).toLocaleString()}`,
           id: workspace.id
         })),
         { placeHolder: "Select workspace to open" }
@@ -81,8 +187,8 @@ export function registerWorkspaceCommands(
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("schemapaste.renameWorkspace", async (workspaceId?: string) => {
-      const id = workspaceId ?? (await pickWorkspaceId(repository));
+    vscode.commands.registerCommand("schemapaste.renameWorkspace", async (arg?: string | WorkspaceCommandArg) => {
+      const id = resolveWorkspaceId(arg) ?? (await pickWorkspaceId(repository));
       if (!id) {
         return;
       }
@@ -107,8 +213,8 @@ export function registerWorkspaceCommands(
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("schemapaste.duplicateWorkspace", async (workspaceId?: string) => {
-      const id = workspaceId ?? (await pickWorkspaceId(repository));
+    vscode.commands.registerCommand("schemapaste.duplicateWorkspace", async (arg?: string | WorkspaceCommandArg) => {
+      const id = resolveWorkspaceId(arg) ?? (await pickWorkspaceId(repository));
       if (!id) {
         return;
       }
@@ -124,8 +230,8 @@ export function registerWorkspaceCommands(
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("schemapaste.deleteWorkspace", async (workspaceId?: string) => {
-      const id = workspaceId ?? (await pickWorkspaceId(repository));
+    vscode.commands.registerCommand("schemapaste.deleteWorkspace", async (arg?: string | WorkspaceCommandArg) => {
+      const id = resolveWorkspaceId(arg) ?? (await pickWorkspaceId(repository));
       if (!id) {
         return;
       }
@@ -146,8 +252,8 @@ export function registerWorkspaceCommands(
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("schemapaste.togglePinWorkspace", async (workspaceId?: string) => {
-      const id = workspaceId ?? (await pickWorkspaceId(repository));
+    vscode.commands.registerCommand("schemapaste.togglePinWorkspace", async (arg?: string | WorkspaceCommandArg) => {
+      const id = resolveWorkspaceId(arg) ?? (await pickWorkspaceId(repository));
       if (!id) {
         return;
       }
@@ -176,8 +282,8 @@ export function registerWorkspaceCommands(
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("schemapaste.exportWorkspace", async (workspaceId?: string) => {
-      const id = workspaceId ?? (await pickWorkspaceId(repository));
+    vscode.commands.registerCommand("schemapaste.exportWorkspace", async (arg?: string | WorkspaceCommandArg) => {
+      const id = resolveWorkspaceId(arg) ?? (await pickWorkspaceId(repository));
       if (!id) {
         return;
       }
@@ -202,6 +308,26 @@ export function registerWorkspaceCommands(
       preview: false
     });
   }
+}
+
+function resolveWorkspaceId(arg?: string | WorkspaceCommandArg): string | undefined {
+  if (!arg) {
+    return undefined;
+  }
+
+  if (typeof arg === "string") {
+    return arg;
+  }
+
+  if (typeof arg.id === "string" && arg.id.length > 0) {
+    return arg.id;
+  }
+
+  if (arg.workspace?.id && typeof arg.workspace.id === "string") {
+    return arg.workspace.id;
+  }
+
+  return undefined;
 }
 
 async function pickWorkspaceId(repository: WorkspaceRepository): Promise<string | undefined> {

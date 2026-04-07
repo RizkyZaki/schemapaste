@@ -32,69 +32,123 @@ export class WorkspaceCustomEditorProvider implements vscode.CustomTextEditorPro
     panel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
-    const params = new URLSearchParams(document.uri.query);
-    const workspaceId = params.get("workspaceId");
-    const workspace = workspaceId ? this.repository.getById(workspaceId) : undefined;
+    panel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [vscode.Uri.joinPath(this.context.extensionUri, "webview-dist")]
+    };
 
-    panel.title = workspace ? `${workspace.name} · SchemaPaste` : "Untitled ERD · SchemaPaste";
+    try {
+      const workspaceId = this.getWorkspaceId(document.uri);
+      const workspace = workspaceId ? this.repository.getById(workspaceId) : undefined;
 
-    const sourceType: SchemaSourceType = workspace?.sourceType ?? "sql";
-    const source = workspace?.originalSourceContent ?? document.getText();
-    const parser = this.parserRegistry.resolve(sourceType);
-    const parsed = parser.parse(source);
+      panel.title = workspace ? `${workspace.name} · SchemaPaste` : "Untitled ERD · SchemaPaste";
 
-    const session = new SchemaPasteWebviewSession(
-      panel.webview,
-      this.context,
-      {
-        sql: source,
-        dialect: "mysql",
-        sourceType,
-        graph: parsed.schema ? normalizedSchemaToGraph(parsed.schema) : undefined,
-        parserIssues: parsed.issues
-      },
-      {
-        onPersistState: async (state) => {
-          if (!workspaceId) {
-            return;
-          }
+      const sourceType: SchemaSourceType = workspace?.sourceType ?? "sql";
+      const source = workspace?.originalSourceContent ?? document.getText();
+      const parser = this.parserRegistry.resolve(sourceType);
+      const parsed = parser.parse(source);
+      const initialGraph = parsed.schema
+        ? normalizedSchemaToGraph(parsed.schema)
+        : workspace?.normalizedSchema
+          ? normalizedSchemaToGraph(workspace.normalizedSchema)
+          : undefined;
 
-          const existing = this.repository.getById(workspaceId);
-          if (!existing) {
-            return;
-          }
-
-          const parser = this.parserRegistry.resolve(state.sourceType);
-          const parsed = parser.parse(state.sql);
-
-          if (parsed.schema) {
-            existing.normalizedSchema = parsed.schema;
-          }
-
-          existing.sourceType = state.sourceType;
-          existing.originalSourceContent = state.sql;
-          existing.updatedAt = new Date().toISOString();
-          await this.repository.upsert(existing);
+      const session = new SchemaPasteWebviewSession(
+        panel.webview,
+        this.context,
+        {
+          sql: source,
+          dialect: "mysql",
+          sourceType,
+          graph: initialGraph,
+          parserIssues: parsed.issues
         },
-        onParseSource: async (nextSource, nextSourceType) => {
-          const parser = this.parserRegistry.resolve(nextSourceType);
-          const parsed = parser.parse(nextSource);
-          return {
-            graph: parsed.schema
-              ? normalizedSchemaToGraph(parsed.schema)
-              : {
-                  nodes: [],
-                  edges: []
-                },
-            parserIssues: parsed.issues
-          };
-        }
-      }
-    );
+        {
+          onPersistState: async (state) => {
+            if (!workspaceId) {
+              return;
+            }
 
-    const disposable = session.attach();
-    panel.onDidDispose(() => {
-      disposable.dispose();
-    });
+            const existing = this.repository.getById(workspaceId);
+            if (!existing) {
+              return;
+            }
+
+            const parser = this.parserRegistry.resolve(state.sourceType);
+            const parsed = parser.parse(state.sql);
+
+            if (parsed.schema) {
+              existing.normalizedSchema = parsed.schema;
+            }
+
+            existing.sourceType = state.sourceType;
+            existing.originalSourceContent = state.sql;
+            existing.updatedAt = new Date().toISOString();
+            await this.repository.upsert(existing);
+          },
+          onParseSource: async (nextSource, nextSourceType) => {
+            const parser = this.parserRegistry.resolve(nextSourceType);
+            const parsed = parser.parse(nextSource);
+            return {
+              graph: parsed.schema
+                ? normalizedSchemaToGraph(parsed.schema)
+                : {
+                    nodes: [],
+                    edges: []
+                  },
+              parserIssues: parsed.issues
+            };
+          }
+        }
+      );
+
+      const disposable = session.attach();
+      panel.onDidDispose(() => {
+        disposable.dispose();
+      });
+    } catch (error) {
+      const text = error instanceof Error ? error.stack ?? error.message : String(error);
+      panel.webview.html = `<!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>
+          body { font-family: sans-serif; padding: 16px; color: var(--vscode-editor-foreground); background: var(--vscode-editor-background); }
+          pre { white-space: pre-wrap; background: var(--vscode-textCodeBlock-background); padding: 10px; border-radius: 6px; }
+        </style>
+      </head>
+      <body>
+        <h3>SchemaPaste failed to open this workspace</h3>
+        <p>Please copy the details below and share it.</p>
+        <pre>${this.escapeHtml(text)}</pre>
+      </body>
+      </html>`;
+    }
+  }
+
+  private getWorkspaceId(uri: vscode.Uri): string | undefined {
+    const params = new URLSearchParams(uri.query);
+    const fromQuery = params.get("workspaceId");
+    if (fromQuery && fromQuery.length > 0) {
+      return fromQuery;
+    }
+
+    const fileName = uri.path.split("/").pop() ?? "";
+    const fromFileName = /^SchemaPaste-(.+)\.schemapaste$/i.exec(fileName)?.[1];
+    if (fromFileName && fromFileName.length > 0) {
+      return fromFileName;
+    }
+
+    return undefined;
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 }
