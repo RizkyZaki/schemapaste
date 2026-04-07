@@ -2,8 +2,9 @@
   "name": "schemapaste",
   "displayName": "SchemaPaste",
   "description": "Paste SQL DDL and visualize an interactive ERD inside VS Code.",
-  "version": "0.1.1",
-  "publisher": "schemapaste",
+  "version": "0.1.2",
+  "publisher": "FriskZach",
+  "icon": "media/marketplace-icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",

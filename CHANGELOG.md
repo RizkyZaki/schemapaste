@@ -10,6 +10,13 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 
 - Placeholder for upcoming improvements.
 
+## [0.1.2] - 2026-04-07
+
+### Changed
+
+- Fixed extension manifest metadata so marketplace icon is resolved correctly.
+- Updated extension package version for repackaging and release distribution.
+
 ## [0.1.1] - 2026-04-07
 
 ### Added
