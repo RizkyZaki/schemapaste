@@ -1,98 +1,83 @@
 # SchemaPaste
 
-SchemaPaste turns SQL DDL into an interactive ERD directly inside VS Code.
+SchemaPaste is a VS Code extension for turning schema source code into interactive ERD workspaces.
 
-It is designed for backend developers who want to inspect table relationships quickly, generate visual documentation, and bootstrap migration files for popular frameworks.
+It is designed for backend engineers who want to inspect table relationships quickly, keep schema history inside the editor, and export documentation or starter artifacts.
 
-## Current Version
+## Release
 
-- Monorepo: `0.1.0`
-- VS Code extension: `0.1.0`
-- Core package: `0.1.0`
-- Webview package: `0.1.0`
+- Current extension version: `0.1.1`
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
 
-Version history is tracked in [CHANGELOG.md](CHANGELOG.md).
+## Extension Highlights
 
-## What You Can Do
+- Workspace-based flow in Activity Bar sidebar
+- Multi-source parser mode:
+	- SQL
+	- Laravel migration
+	- Prisma schema
+	- Drizzle schema
+	- TypeORM entities
+	- Sequelize models
+	- Django models
+- Interactive ERD canvas with drag, reconnect, fit view, and auto layout
+- Save/load schema snapshot JSON
+- Export workspace in multiple formats:
+	- PNG
+	- SVG
+	- PDF
+	- JSON workspace
+	- Normalized schema JSON
+	- Source conversion (`sql`, `laravel`, `prisma`, `drizzle`, `typeorm`, `sequelize`, `django`)
 
-- Open SchemaPaste from the Activity Bar sidebar
-- Use command palette: `SchemaPaste: Open ERD`
-- Parse SQL DDL in real time (MySQL, PostgreSQL, SQLite)
-- Explore ERD with drag, zoom, pan, minimap, fit view, auto layout
-- Visualize PK, FK, unique, and nullability metadata
-- Export ERD as SVG and PNG
-- Export migration starter files for:
-	- Laravel
-	- Prisma
-	- Knex
-	- Sequelize
-	- TypeORM
-- Save and load schema snapshot JSON
+## How To Use
 
-## Project Structure
+1. Open the SchemaPaste icon from the VS Code Activity Bar.
+2. Click `New ERD Workspace`.
+3. Select your source type.
+4. Paste schema source in the editor panel.
+5. Review ERD and diagnostics.
+6. Use toolbar or context menu to export / manage workspaces.
 
-- `extension/`: VS Code extension host and webview bridge
-- `webview/`: React + Vite interface
-- `core/`: parser, transform, layout, and export engine
+## Main Commands
 
-## Quick Start (Development)
+- `SchemaPaste: New ERD Workspace`
+- `SchemaPaste: Open Workspace`
+- `SchemaPaste: Search Workspaces`
+- `SchemaPaste: Toggle Workspace Sort`
+- `SchemaPaste: Open ERD` (legacy entrypoint, mapped to new workspace flow)
+
+## Local Development
 
 ```bash
 pnpm install
 pnpm build
 ```
 
-Then run `F5` in VS Code to open Extension Development Host.
+Press `F5` in VS Code to launch Extension Development Host.
 
-## Hot Reload Workflow
+Hot reload workflow:
 
-1. Run webview dev server:
+1. `pnpm dev` in `webview/`
+2. `pnpm watch` in `extension/`
+3. Launch extension host with `SCHEMAPASTE_WEBVIEW_DEV_SERVER=http://localhost:5173`
 
-```bash
-pnpm dev
-```
-
-2. Run extension watch:
-
-```bash
-pnpm watch:extension
-```
-
-3. Start Extension Development Host with env var:
-
-```bash
-SCHEMAPASTE_WEBVIEW_DEV_SERVER=http://localhost:5173
-```
-
-## Build And Test
-
-Build all packages:
-
-```bash
-pnpm build
-```
-
-Run core tests:
-
-```bash
-pnpm test
-```
-
-Package VSIX:
+## Package VSIX
 
 ```bash
 pnpm package:vsix
 ```
 
-## Roadmap
+Output file: `schemapaste.vsix` in repository root.
 
-- Mermaid export
-- DBML export
-- Reverse SQL generation
-- Deeper data-type/default/index mapping across migration targets
-- Marketplace polish (demo media, metadata, publish workflow)
+## Repository Structure
+
+- `extension/` VS Code extension host, custom editor, commands, repository state, exporters
+- `webview/` React UI and canvas interactions
+- `core/` SQL parser adapter and graph/layout utilities
 
 ## Additional Docs
 
-- Extension marketplace README: [extension/README.md](extension/README.md)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
+- Extension-focused README: [extension/README.md](extension/README.md)
+- Architecture notes: [extension/docs/ARCHITECTURE.md](extension/docs/ARCHITECTURE.md)
+- Extensibility guide: [extension/docs/EXTENSIBILITY_GUIDE.md](extension/docs/EXTENSIBILITY_GUIDE.md)
