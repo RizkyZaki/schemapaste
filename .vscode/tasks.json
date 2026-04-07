@@ -1,32 +1,61 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "schemapaste:build",
-      "type": "shell",
-      "command": "pnpm build",
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "schemapaste:webview-dev",
-      "type": "shell",
-      "command": "pnpm dev",
-      "options": {
-        "cwd": "${workspaceFolder}/webview"
-      },
-      "isBackground": true,
-      "problemMatcher": []
-    },
-    {
-      "label": "schemapaste:extension-watch",
-      "type": "shell",
-      "command": "pnpm watch",
-      "options": {
-        "cwd": "${workspaceFolder}/extension"
-      },
-      "isBackground": true,
-      "problemMatcher": []
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "schemapaste:build",
+			"type": "shell",
+			"command": "pnpm build",
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "schemapaste:webview-dev",
+			"type": "shell",
+			"command": "pnpm dev",
+			"options": {
+				"cwd": "${workspaceFolder}/webview"
+			},
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "schemapaste:extension-watch",
+			"type": "shell",
+			"command": "pnpm watch",
+			"options": {
+				"cwd": "${workspaceFolder}/extension"
+			},
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "schemapaste:package-vsix",
+			"type": "shell",
+			"command": "pnpm",
+			"args": [
+				"-C",
+				"extension",
+				"package"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "schemapaste:package-vsix-fixed",
+			"type": "shell",
+			"command": "pnpm",
+			"args": [
+				"-C",
+				"extension",
+				"exec",
+				"vsce",
+				"package",
+				"--no-dependencies",
+				"--out",
+				"../schemapaste.vsix"
+			],
+			"isBackground": false,
+			"group": "build"
+		}
+	]
 }

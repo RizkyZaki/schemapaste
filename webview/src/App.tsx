@@ -7,47 +7,77 @@ import { ErdCanvas } from "./components/ErdCanvas";
 import { SqlEditor } from "./components/SqlEditor";
 import { Toolbar } from "./components/Toolbar";
 import { useSchemaStore } from "./store/useSchemaStore";
-import { exportNodeAsPngBase64, exportNodeAsSvg } from "./utils/export";
+import { exportErdAsPngBase64, exportNodeAsSvg } from "./utils/export";
 import { listenFromExtension, postToExtension, vscodeApi } from "./utils/vscode";
 
 const DEBOUNCE_MS = 300;
+const COMPACT_BREAKPOINT = 960;
 
 export default function App(): JSX.Element {
   const {
     sql,
     dialect,
+    sourceType,
     graph,
     schema,
     errors,
+    parserIssues,
     isParsing,
     toast,
     setSql,
     setDialect,
+    setSourceType,
     parseSql,
+    setParsedGraph,
     setFromSnapshot,
     setToast
   } = useSchemaStore();
 
   const [divider, setDivider] = useState(44);
   const [dragging, setDragging] = useState(false);
+  const [isCompact, setIsCompact] = useState(() => window.innerWidth <= COMPACT_BREAKPOINT);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const flowRef = useRef<ReactFlowInstance | null>(null);
 
   useEffect(() => {
+    const onResize = (): void => {
+      setIsCompact(window.innerWidth <= COMPACT_BREAKPOINT);
+    };
+
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
-      parseSql(sql);
+      if (sourceType === "sql") {
+        parseSql(sql);
+      }
+
+      postToExtension({
+        type: "parseSource",
+        payload: {
+          source: sql,
+          sourceType,
+          dialect
+        }
+      });
+
       postToExtension({
         type: "persistState",
         payload: {
           sql,
-          dialect
+          dialect,
+          sourceType
         }
       });
-      vscodeApi?.setState({ sql, dialect });
+      vscodeApi?.setState({ sql, dialect, sourceType });
     }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [sql, dialect, parseSql]);
+  }, [sql, dialect, sourceType, parseSql]);
 
   useEffect(() => {
     postToExtension({ type: "ready" });
@@ -64,6 +94,14 @@ export default function App(): JSX.Element {
       if (message.type === "restoreState") {
         setSql(message.payload.sql);
         setDialect(message.payload.dialect);
+        setSourceType(message.payload.sourceType);
+        if (message.payload.graph) {
+          setParsedGraph(message.payload.graph, message.payload.parserIssues ?? []);
+        }
+      }
+
+      if (message.type === "parsedGraph") {
+        setParsedGraph(message.payload.graph, message.payload.parserIssues);
       }
 
       if (message.type === "operationResult") {
@@ -71,19 +109,24 @@ export default function App(): JSX.Element {
       }
     });
 
-    const persisted = vscodeApi?.getState() as { sql?: string; dialect?: typeof dialect } | undefined;
+    const persisted = vscodeApi?.getState() as
+      | { sql?: string; dialect?: typeof dialect; sourceType?: typeof sourceType }
+      | undefined;
     if (persisted?.sql) {
       setSql(persisted.sql);
     }
     if (persisted?.dialect) {
       setDialect(persisted.dialect);
     }
+    if (persisted?.sourceType) {
+      setSourceType(persisted.sourceType);
+    }
 
     return dispose;
-  }, [setDialect, setFromSnapshot, setSql, setToast]);
+  }, [setDialect, setFromSnapshot, setParsedGraph, setSourceType, setSql, setToast]);
 
   useEffect(() => {
-    if (!dragging) {
+    if (!dragging || isCompact) {
       return;
     }
 
@@ -104,7 +147,7 @@ export default function App(): JSX.Element {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, [dragging]);
+  }, [dragging, isCompact]);
 
   const leftWidth = useMemo(() => `${divider}%`, [divider]);
   const rightWidth = useMemo(() => `${100 - divider}%`, [divider]);
@@ -119,6 +162,11 @@ export default function App(): JSX.Element {
 
   const onFitView = (): void => {
     flowRef.current?.fitView({ duration: 300, padding: 0.2 });
+  };
+
+  const onNewDb = (): void => {
+    setSql("");
+    setToast("New DB created. Paste CREATE TABLE SQL to generate ERD.");
   };
 
   const onSaveSchema = (): void => {
@@ -150,10 +198,10 @@ export default function App(): JSX.Element {
   };
 
   const onExportPng = async (): Promise<void> => {
-    if (!canvasRef.current) {
+    if (!canvasRef.current || !flowRef.current) {
       return;
     }
-    const contentBase64 = await exportNodeAsPngBase64(canvasRef.current);
+    const contentBase64 = await exportErdAsPngBase64(canvasRef.current, flowRef.current);
     postToExtension({
       type: "exportFile",
       payload: {
@@ -174,12 +222,15 @@ export default function App(): JSX.Element {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-surface text-text">
+    <div className="h-screen w-screen overflow-hidden bg-surface text-text antialiased">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(16,185,129,0.18),transparent_28%)]" />
       <div className="relative z-10 flex h-full flex-col p-2">
         <Toolbar
+          sourceType={sourceType}
+          onSourceTypeChange={setSourceType}
           dialect={dialect}
           onDialectChange={setDialect}
+          onNewDb={onNewDb}
           onAutoLayout={onAutoLayout}
           onFitView={onFitView}
           onExportSvg={() => void onExportSvg()}
@@ -191,20 +242,35 @@ export default function App(): JSX.Element {
         />
 
         <ErrorBanner errors={errors} />
+        {sourceType !== "sql" && parserIssues.length > 0 ? (
+          <div className="mt-2 rounded-lg border border-orange-500/50 bg-orange-600/10 px-3 py-2 text-xs text-orange-200">
+            <p className="font-semibold tracking-wide">Parser Diagnostics</p>
+            <p className="mt-1 leading-5">{parserIssues[0]?.message}</p>
+          </div>
+        ) : null}
 
-        <div className="mt-2 flex h-full min-h-0 gap-2">
-          <div style={{ width: leftWidth }} className="h-full min-h-0">
+        <div className={`mt-2 flex h-full min-h-0 gap-2 ${isCompact ? "flex-col" : ""}`}>
+          <div
+            style={isCompact ? { flexBasis: "38%" } : { width: leftWidth }}
+            className={`${isCompact ? "min-h-[180px]" : "h-full"} min-h-0`}
+          >
             <SqlEditor value={sql} onChange={setSql} />
           </div>
 
-          <button
-            type="button"
-            aria-label="Resize"
-            className="w-1.5 cursor-col-resize rounded bg-border/60 transition hover:bg-accent"
-            onMouseDown={() => setDragging(true)}
-          />
+          {!isCompact ? (
+            <button
+              type="button"
+              aria-label="Resize"
+              className="w-1.5 cursor-col-resize rounded bg-border/60 transition hover:bg-accent"
+              onMouseDown={() => setDragging(true)}
+            />
+          ) : null}
 
-          <div style={{ width: rightWidth }} className="h-full min-h-0" ref={canvasRef}>
+          <div
+            style={isCompact ? { flexBasis: "62%" } : { width: rightWidth }}
+            className={`${isCompact ? "min-h-[220px]" : "h-full"} min-h-0`}
+            ref={canvasRef}
+          >
             {isParsing ? (
               <div className="grid h-full grid-cols-2 gap-3 rounded-xl border border-border/70 bg-panel/40 p-3">
                 {Array.from({ length: 6 }).map((_, index) => (
@@ -236,7 +302,7 @@ export default function App(): JSX.Element {
         {toast ? (
           <button
             type="button"
-            className="absolute bottom-4 right-4 rounded-md border border-border bg-panel px-3 py-2 text-xs"
+            className="absolute bottom-4 right-4 rounded-md border border-border/70 bg-panel/95 px-3 py-2 text-xs shadow-glow"
             onClick={() => setToast(null)}
           >
             {toast}

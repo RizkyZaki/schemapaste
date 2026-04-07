@@ -8,7 +8,16 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 
 ### Added
 
-- Placeholder for upcoming improvements.
+- Source-aware webview bridge with parser diagnostics and normalized-schema graph sync.
+- Workspace editor parsing pipeline for SQL, Laravel, Prisma, Drizzle, TypeORM, Sequelize, and Django source types.
+- New export strategy set: SVG diagram, PNG diagram, PDF summary, and source conversion exporters (SQL, Laravel, Prisma, Drizzle, TypeORM, Sequelize, Django).
+- Extension-side normalized schema to ERD graph mapper for renderer-agnostic parsing results.
+
+### Changed
+
+- Toolbar now supports parser source switching directly in the editor session.
+- SQL dialect selector is context-aware and only shown for SQL source mode.
+- Persisted panel state now stores source type plus parser output metadata.
 
 ## [0.1.0] - 2026-04-07
 

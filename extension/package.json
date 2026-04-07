@@ -19,7 +19,10 @@
   "main": "./dist/extension.js",
   "activationEvents": [
     "onCommand:schemapaste.openErd",
-    "onView:schemapaste.sidebarView"
+    "onCommand:schemapaste.newWorkspace",
+    "onCommand:schemapaste.openWorkspace",
+    "onView:schemapaste.workspaceHistory",
+    "onCustomEditor:schemapaste.erdWorkspaceEditor"
   ],
   "contributes": {
     "viewsContainers": {
@@ -34,18 +37,136 @@
     "views": {
       "schemapaste": [
         {
-          "id": "schemapaste.sidebarView",
-          "name": "SchemaPaste"
+          "id": "schemapaste.workspaceHistory",
+          "name": "Workspaces"
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "schemapaste.workspaceHistory",
+        "contents": "Create your first ERD workspace.\n[New ERD Workspace](command:schemapaste.newWorkspace)",
+        "when": "view == schemapaste.workspaceHistory"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "schemapaste.erdWorkspaceEditor",
+        "displayName": "SchemaPaste ERD Workspace",
+        "selector": [
+          {
+            "filenamePattern": "*.schemapaste"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
     "commands": [
       {
         "command": "schemapaste.openErd",
         "title": "SchemaPaste: Open ERD",
         "category": "SchemaPaste"
+      },
+      {
+        "command": "schemapaste.newWorkspace",
+        "title": "SchemaPaste: New ERD Workspace",
+        "category": "SchemaPaste",
+        "icon": "$(add)"
+      },
+      {
+        "command": "schemapaste.openWorkspace",
+        "title": "SchemaPaste: Open Workspace",
+        "category": "SchemaPaste"
+      },
+      {
+        "command": "schemapaste.searchWorkspace",
+        "title": "SchemaPaste: Search Workspaces",
+        "category": "SchemaPaste",
+        "icon": "$(search)"
+      },
+      {
+        "command": "schemapaste.sortWorkspace",
+        "title": "SchemaPaste: Toggle Workspace Sort",
+        "category": "SchemaPaste",
+        "icon": "$(sort-precedence)"
+      },
+      {
+        "command": "schemapaste.renameWorkspace",
+        "title": "Rename Workspace",
+        "category": "SchemaPaste"
+      },
+      {
+        "command": "schemapaste.duplicateWorkspace",
+        "title": "Duplicate Workspace",
+        "category": "SchemaPaste"
+      },
+      {
+        "command": "schemapaste.deleteWorkspace",
+        "title": "Delete Workspace",
+        "category": "SchemaPaste"
+      },
+      {
+        "command": "schemapaste.togglePinWorkspace",
+        "title": "Pin/Unpin Workspace",
+        "category": "SchemaPaste"
+      },
+      {
+        "command": "schemapaste.exportWorkspace",
+        "title": "Export Workspace",
+        "category": "SchemaPaste"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "schemapaste.newWorkspace",
+          "when": "view == schemapaste.workspaceHistory",
+          "group": "navigation@1"
+        },
+        {
+          "command": "schemapaste.searchWorkspace",
+          "when": "view == schemapaste.workspaceHistory",
+          "group": "navigation@2"
+        },
+        {
+          "command": "schemapaste.sortWorkspace",
+          "when": "view == schemapaste.workspaceHistory",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "schemapaste.openWorkspace",
+          "when": "view == schemapaste.workspaceHistory && viewItem == workspaceItem || viewItem == workspaceItemPinned",
+          "group": "inline@1"
+        },
+        {
+          "command": "schemapaste.renameWorkspace",
+          "when": "view == schemapaste.workspaceHistory && viewItem == workspaceItem || viewItem == workspaceItemPinned",
+          "group": "inline@2"
+        },
+        {
+          "command": "schemapaste.duplicateWorkspace",
+          "when": "view == schemapaste.workspaceHistory && viewItem == workspaceItem || viewItem == workspaceItemPinned",
+          "group": "inline@3"
+        },
+        {
+          "command": "schemapaste.togglePinWorkspace",
+          "when": "view == schemapaste.workspaceHistory && viewItem == workspaceItem || viewItem == workspaceItemPinned",
+          "group": "inline@4"
+        },
+        {
+          "command": "schemapaste.exportWorkspace",
+          "when": "view == schemapaste.workspaceHistory && viewItem == workspaceItem || viewItem == workspaceItemPinned",
+          "group": "inline@5"
+        },
+        {
+          "command": "schemapaste.deleteWorkspace",
+          "when": "view == schemapaste.workspaceHistory && viewItem == workspaceItem || viewItem == workspaceItemPinned",
+          "group": "inline@6"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "schemapaste.openErd",
@@ -58,13 +179,15 @@
     "build": "node scripts/build.mjs",
     "watch": "node esbuild.mjs --watch",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "package": "pnpm -C .. build && @vscode/vsce package --no-dependencies --out ../schemapaste.vsix",
-    "publish": "pnpm -C .. build && @vscode/vsce publish"
+    "package": "pnpm -C .. build && pnpm dlx @vscode/vsce package --no-dependencies --out ../schemapaste.vsix",
+    "publish": "pnpm -C .. build && pnpm dlx @vscode/vsce publish"
   },
   "dependencies": {
-    "@schemapaste/core": "workspace:*"
+    "@schemapaste/core": "workspace:*",
+    "pngjs": "^7.0.0"
   },
   "devDependencies": {
+    "@types/pngjs": "^6.0.5",
     "@types/vscode": "^1.95.0",
     "@vscode/vsce": "^3.2.2",
     "esbuild": "^0.25.5"

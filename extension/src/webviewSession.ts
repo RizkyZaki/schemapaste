@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import {
+  type ErdGraph,
   generateBackendMigration,
   serializeSchemaSnapshot,
   suggestedMigrationExtensions,
@@ -11,10 +12,23 @@ import {
   type SqlDialect
 } from "@schemapaste/core";
 import type { ExtensionToWebviewMessage, WebviewToExtensionMessage } from "./messages";
+import type { SchemaParseIssue, SchemaSourceType } from "./types/normalizedSchema";
 
 export interface PersistedPanelState {
   sql: string;
   dialect: SqlDialect;
+  sourceType: SchemaSourceType;
+  graph?: ErdGraph;
+  parserIssues?: SchemaParseIssue[];
+}
+
+interface SchemaPasteWebviewSessionHooks {
+  onPersistState?: (state: PersistedPanelState) => Promise<void> | void;
+  onParseSource?: (
+    source: string,
+    sourceType: SchemaSourceType,
+    dialect: SqlDialect
+  ) => Promise<{ graph: ErdGraph; parserIssues: SchemaParseIssue[] }>;
 }
 
 const STATE_KEY = "schemapaste.panelState";
@@ -22,13 +36,16 @@ const STATE_KEY = "schemapaste.panelState";
 export class SchemaPasteWebviewSession {
   private state: PersistedPanelState = {
     sql: "",
-    dialect: "mysql"
+    dialect: "mysql",
+    sourceType: "sql",
+    parserIssues: []
   };
 
   constructor(
     private readonly webview: vscode.Webview,
     private readonly extensionContext: vscode.ExtensionContext,
-    initialState?: PersistedPanelState
+    initialState?: PersistedPanelState,
+    private readonly hooks?: SchemaPasteWebviewSessionHooks
   ) {
     if (initialState) {
       this.state = initialState;
@@ -72,7 +89,12 @@ export class SchemaPasteWebviewSession {
           return;
         }
 
-        const bytes = await vscode.workspace.fs.readFile(picked[0]);
+        const selected = picked[0];
+        if (!selected) {
+          return;
+        }
+
+        const bytes = await vscode.workspace.fs.readFile(selected);
         const json = Buffer.from(bytes).toString("utf8");
         this.postMessage({
           type: "schemaLoaded",
@@ -93,7 +115,7 @@ export class SchemaPasteWebviewSession {
           return;
         }
 
-        if (isSvg) {
+        if (message.payload.format === "svg") {
           await vscode.workspace.fs.writeFile(uri, Buffer.from(message.payload.content, "utf8"));
         } else {
           await vscode.workspace.fs.writeFile(uri, Buffer.from(message.payload.contentBase64, "base64"));
@@ -105,9 +127,33 @@ export class SchemaPasteWebviewSession {
       case "persistState": {
         this.state = {
           sql: message.payload.sql,
-          dialect: message.payload.dialect
+          dialect: message.payload.dialect,
+          sourceType: message.payload.sourceType,
+          graph: this.state.graph,
+          parserIssues: this.state.parserIssues ?? []
         };
         await this.extensionContext.workspaceState.update(STATE_KEY, this.state);
+        await this.hooks?.onPersistState?.(this.state);
+        return;
+      }
+      case "parseSource": {
+        if (!this.hooks?.onParseSource) {
+          return;
+        }
+
+        const parsed = await this.hooks.onParseSource(
+          message.payload.source,
+          message.payload.sourceType,
+          message.payload.dialect
+        );
+
+        this.state.graph = parsed.graph;
+        this.state.parserIssues = parsed.parserIssues;
+
+        this.postMessage({
+          type: "parsedGraph",
+          payload: parsed
+        });
         return;
       }
       case "exportMigration": {
@@ -185,6 +231,10 @@ export class SchemaPasteWebviewSession {
       const manifestRaw = fs.readFileSync(manifestUri.fsPath, "utf8");
       const manifest = JSON.parse(manifestRaw) as Record<string, { file: string; css?: string[] }>;
       const entry = manifest["index.html"];
+      if (!entry?.file) {
+        throw new Error("Missing Vite manifest entry for index.html");
+      }
+
       const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(distPath, entry.file));
       const cssUris = (entry.css ?? []).map((cssFile) => webview.asWebviewUri(vscode.Uri.joinPath(distPath, cssFile)).toString());
       const nonce = this.createNonce();

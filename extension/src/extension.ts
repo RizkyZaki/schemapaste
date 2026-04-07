@@ -1,19 +1,31 @@
 import * as vscode from "vscode";
-import { SchemaPastePanel } from "./panel";
-import { SCHEMAPASTE_SIDEBAR_VIEW_ID, SchemaPasteSidebarProvider } from "./sidebar";
+import { registerWorkspaceCommands } from "./commands/workspaceCommands";
+import { WorkspaceCustomEditorProvider } from "./custom-editor/workspaceEditorProvider";
+import { createDefaultExportService } from "./exporters/createDefaultExportService";
+import { WorkspaceHistoryTreeProvider, SCHEMAPASTE_HISTORY_VIEW_ID } from "./sidebar/workspaceTreeProvider";
+import { WorkspaceRepository } from "./storage/workspaceRepository";
 
 export function activate(context: vscode.ExtensionContext): void {
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(SCHEMAPASTE_SIDEBAR_VIEW_ID, new SchemaPasteSidebarProvider(context))
-  );
+  const repository = new WorkspaceRepository(context);
+  const exportService = createDefaultExportService();
+  const historyProvider = new WorkspaceHistoryTreeProvider(repository);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("schemapaste.openErd", () => {
-      SchemaPastePanel.createOrShow(context);
+    vscode.window.createTreeView(SCHEMAPASTE_HISTORY_VIEW_ID, {
+      treeDataProvider: historyProvider,
+      showCollapseAll: false
     })
   );
 
-  context.subscriptions.push(SchemaPastePanel.registerSerializer(context));
+  context.subscriptions.push(WorkspaceCustomEditorProvider.register(context, repository));
+
+  registerWorkspaceCommands(context, repository, historyProvider, exportService);
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("schemapaste.openErd", async () => {
+      await vscode.commands.executeCommand("schemapaste.newWorkspace");
+    })
+  );
 }
 
 export function deactivate(): void {

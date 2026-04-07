@@ -1,4 +1,5 @@
-import type { BackendMigrationTarget, SchemaModel, SqlDialect } from "@schemapaste/core";
+import type { BackendMigrationTarget, ErdGraph, SchemaModel, SqlDialect } from "@schemapaste/core";
+import type { SchemaParseIssue, SchemaSourceType } from "./types/normalizedSchema";
 
 export type WebviewToExtensionMessage =
   | {
@@ -35,6 +36,15 @@ export type WebviewToExtensionMessage =
       payload: {
         sql: string;
         dialect: SqlDialect;
+        sourceType: SchemaSourceType;
+      };
+    }
+  | {
+      type: "parseSource";
+      payload: {
+        source: string;
+        sourceType: SchemaSourceType;
+        dialect: SqlDialect;
       };
     }
   | {
@@ -53,6 +63,16 @@ export type ExtensionToWebviewMessage =
       payload: {
         sql: string;
         dialect: SqlDialect;
+        sourceType: SchemaSourceType;
+        graph?: ErdGraph;
+        parserIssues?: SchemaParseIssue[];
+      };
+    }
+  | {
+      type: "parsedGraph";
+      payload: {
+        graph: ErdGraph;
+        parserIssues: SchemaParseIssue[];
       };
     }
   | {

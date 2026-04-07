@@ -10,7 +10,7 @@
     "watch:extension": "pnpm --filter @schemapaste/extension watch",
     "lint": "pnpm -r lint",
     "test": "pnpm --filter @schemapaste/core test",
-    "package:vsix": "pnpm build && pnpm --filter @schemapaste/extension package"
+    "package:vsix": "pnpm build && pnpm --filter schemapaste package"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

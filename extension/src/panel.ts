@@ -20,6 +20,10 @@ export class SchemaPastePanel {
 
     const persistedState = getPersistedPanelState(context);
     SchemaPastePanel.currentPanel = new SchemaPastePanel(panel, context, persistedState);
+
+    // Keep the ERD panel focused and maximize editor area for an immediate fullscreen-like experience.
+    void vscode.commands.executeCommand("workbench.action.closeSidebar");
+    void vscode.commands.executeCommand("workbench.action.closeAuxiliaryBar");
   }
 
   static registerSerializer(context: vscode.ExtensionContext): vscode.Disposable {
